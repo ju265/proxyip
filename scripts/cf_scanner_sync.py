@@ -11,7 +11,6 @@ from datetime import datetime, timedelta, timezone
 # 🎯 全局默认地区设置 (如果想要永久换地区，只改这里！)
 # 支持多个地区，用逗号隔开，例如 "SJC,LAX,HKG,FRA,NRT"
 # 💡 新手不知道有什么地区？可以直接填 "ALL"，系统会全区盲扫并自动创建所有能扫到的地区子域名！
-# 💡 填 "ALL_NOSYNC" 则是全局盲扫但不进行 DNS 同步，只将扫到的优质 IP 及其网段保存到日志！
 # ==========================================
 DEFAULT_REGIONS = "SJC"
 
@@ -23,7 +22,7 @@ SYNC_MAIN_DOMAIN = "NO"
 # 🎯 扫描与同步数量设置
 # 控制每个地区最终要同步几个 IP 到 Cloudflare DNS (默认 10 个)
 SYNC_COUNT = 10
-# 控制 ALL / ALL_NOSYNC 全局模式下，最终要扫出多少个 IP 才停止 (默认 200 个)
+# 控制 ALL 全局模式下，最终要扫出多少个 IP 才停止 (默认 200 个)
 ALL_MODE_LIMIT = 200
 # ==========================================
 
@@ -192,14 +191,10 @@ def main():
     
     region_input = DEFAULT_REGIONS
     target_regions = [r.strip().upper() for r in region_input.split(",") if r.strip()]
-    is_scan_all = "ALL" in target_regions or "ALL_NOSYNC" in target_regions
-    force_no_sync = "ALL_NOSYNC" in target_regions
+    is_scan_all = "ALL" in target_regions
     
     if is_scan_all:
-        if force_no_sync:
-            print(f"Target Regions dynamically set to: ALL_NOSYNC (Global Scan & Log Mode, DNS Sync Disabled)")
-        else:
-            print(f"Target Regions dynamically set to: ALL (Global Scan Mode)")
+        print(f"Target Regions dynamically set to: ALL (Global Scan Mode)")
     else:
         print(f"Target Regions dynamically set to: {target_regions}")
     
@@ -239,10 +234,7 @@ def main():
             pass
     
     can_sync = True
-    if force_no_sync:
-        can_sync = False
-        print("DNS Synchronization is intentionally DISABLED by ALL_NOSYNC mode.")
-    elif not all([api_token, zone_id, base_domain, cf_email]):
+    if not all([api_token, zone_id, base_domain, cf_email]):
         print("Warning: Missing required environment variables (CF_API_TOKEN, CF_ZONE_ID, CF_TARGET_DOMAIN, CF_EMAIL).")
         print("DNS Synchronization will be skipped, but IP scanning will still proceed!")
         can_sync = False
@@ -311,17 +303,7 @@ def main():
             success_count = process_ips(ips_to_test)
             
             if success_count == 0:
-                print(f"[DEAD SUBNET] No valid IPs found in {cidr}. Removing from log.")
-                # 从日志文件中移除该段
-                if os.path.exists(log_file):
-                    with open(log_file, "r", encoding="utf-8") as f:
-                        lines = [line.strip() for line in f if line.strip()]
-                    
-                    new_lines = [line for line in lines if not line.startswith(cidr + "#")]
-                    
-                    with open(log_file, "w", encoding="utf-8") as f:
-                        for line in new_lines:
-                            f.write(f"{line}\n")
+                print(f"[DEAD SUBNET] No valid IPs found in {cidr}. (Keeping in log per user request)")
             else:
                 print(f"[ACTIVE SUBNET] {cidr} is alive ({success_count} responsive IPs).")
             

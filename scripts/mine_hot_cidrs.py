@@ -101,6 +101,8 @@ def main():
                 result = future.result()
                 if result:
                     colo = result['colo']
+                    if colo == 'UNK':
+                        continue
                     ip = result['ip']
                     parts = ip.split('.')
                     if len(parts) == 4:
