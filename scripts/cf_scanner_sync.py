@@ -344,14 +344,18 @@ def main():
             
         # Target domain specific to this region
         if can_sync:
-            target_domain = f"{region.lower()}.{base_domain}"
-            print(f"\nStarting Cloudflare DNS Sync for {target_domain}...")
-            sync_to_cloudflare(api_token, zone_id, target_domain, best_ips, cf_email)
+            if is_scan_all:
+                print(f"\n[Global Mode] Skipping regional subdomain sync for {region}.")
+            else:
+                target_domain = f"{region.lower()}.{base_domain}"
+                print(f"\nStarting Cloudflare DNS Sync for {target_domain}...")
+                sync_to_cloudflare(api_token, zone_id, target_domain, best_ips, cf_email)
         else:
             print(f"\nSkipping Cloudflare DNS Sync for {region} (Missing Credentials).")
                 
     if can_sync and all_best_ips:
-        if SYNC_MAIN_DOMAIN.strip().upper() == "YES":
+        # 在 ALL 模式下，强制同步到主域名；在精准模式下，取决于 SYNC_MAIN_DOMAIN 开关
+        if is_scan_all or SYNC_MAIN_DOMAIN.strip().upper() == "YES":
             all_best_ips.sort(key=lambda x: x["latency"])
             print(f"\n[Global Sync] Starting Cloudflare DNS Sync for MAIN DOMAIN: {base_domain}")
             sync_to_cloudflare(api_token, zone_id, base_domain, all_best_ips, cf_email)
