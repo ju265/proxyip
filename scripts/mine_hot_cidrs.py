@@ -64,6 +64,7 @@ def main():
     # 随机打乱扫描顺序
     random.shuffle(cidrs)
     
+    # 这里清空 active_subnets，这样只有在本次测试中真正存活的段才会被保留下来
     active_subnets = set()
     hot_cidrs_to_scan = []
     
@@ -76,16 +77,20 @@ def main():
                 if line:
                     if line.endswith("#UNK"):
                         continue  # 清洗掉 UNK 的记录
-                    active_subnets.add(line)
-                    # 提取纯 IP 段，加入待扫队列
+                    # 提取纯 IP 段，加入待扫队列 (但不加入 active_subnets)
                     hot_cidrs_to_scan.append(line.split('#')[0])
                     
     initial_count = len(active_subnets)
     print(f"Loaded {initial_count} existing active subnets from {log_file} (UNK filtered)")
     
-    # 按照要求：先扫现有的 hot_cidrs.txt，扫完再去 ip.txt 里面挖一圈
-    # 由于字典去重或者随机顺序需要，这里我们把他们按顺序拼接
-    all_cidrs_to_scan = hot_cidrs_to_scan + cidrs
+    # 去重：确保 ip.txt 里的段不会和 hot_cidrs.txt 里的段重复被扫两遍
+    seen_cidrs_for_scan = set(hot_cidrs_to_scan)
+    unique_new_cidrs = [c for c in cidrs if c not in seen_cidrs_for_scan]
+    
+    # 按照要求：先扫现有的 hot_cidrs.txt，扫完再去 ip.txt 里面挖一圈 (已去重)
+    all_cidrs_to_scan = hot_cidrs_to_scan + unique_new_cidrs
+    
+    print(f"Total subnets to scan: {len(all_cidrs_to_scan)} (Hot: {len(hot_cidrs_to_scan)}, Global New: {len(unique_new_cidrs)})")
     
     max_workers = 100
     futures_map = {}
