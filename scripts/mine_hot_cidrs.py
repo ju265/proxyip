@@ -65,25 +65,34 @@ def main():
     random.shuffle(cidrs)
     
     active_subnets = set()
+    hot_cidrs_to_scan = []
     
-    # 读取已有的热点段，避免重复工作
+    # 读取已有的热点段，自动清洗掉 #UNK
     log_file = "hot_cidrs.txt"
     if os.path.exists(log_file):
         with open(log_file, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:
+                    if line.endswith("#UNK"):
+                        continue  # 清洗掉 UNK 的记录
                     active_subnets.add(line)
+                    # 提取纯 IP 段，加入待扫队列
+                    hot_cidrs_to_scan.append(line.split('#')[0])
                     
     initial_count = len(active_subnets)
-    print(f"Loaded {initial_count} existing active subnets from {log_file}")
+    print(f"Loaded {initial_count} existing active subnets from {log_file} (UNK filtered)")
+    
+    # 按照要求：先扫现有的 hot_cidrs.txt，扫完再去 ip.txt 里面挖一圈
+    # 由于字典去重或者随机顺序需要，这里我们把他们按顺序拼接
+    all_cidrs_to_scan = hot_cidrs_to_scan + cidrs
     
     max_workers = 100
     futures_map = {}
     
     # 开始提交并发任务
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for cidr in cidrs:
+        for cidr in all_cidrs_to_scan:
             ips_to_test = get_random_ips_from_cidr(cidr, count=2)
             for ip in ips_to_test:
                 futures_map[executor.submit(test_ip, ip, check_api_url)] = ip
