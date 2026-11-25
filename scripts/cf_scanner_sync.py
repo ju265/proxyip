@@ -258,7 +258,7 @@ def main():
         
     def process_ips(ips_to_test):
         success_count = 0
-        with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             futures = {executor.submit(test_ip, ip, check_api_url): ip for ip in ips_to_test}
             for future in concurrent.futures.as_completed(futures):
                 result = future.result()
